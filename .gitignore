@@ -116,3 +116,12 @@ media/
 db.sqlite3
 
 **/migrations/*
+
+# Local project files
+.idea/
+.vscode/
+.env
+db.sqlite3
+media/
+staticfiles/
+celerybeat-schedule*
