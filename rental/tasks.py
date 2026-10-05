@@ -1,30 +1,23 @@
-from __future__ import absolute_import, unicode_literals
-
-import datetime
-
 from celery import shared_task
-from django.utils.timezone import make_aware
+from django.conf import settings
+from django.utils import timezone
 
 from rental.models import Rental
 
 
-# The decorator allows this function to be registered as a celery task (and show up on Django Admin)
 @shared_task
 def check_rentals_return():
     """
-    Check Rentals rental_date, if a certain time has passed, the return_date is set to the current
-    date and the BookUnit borrowed attribute is set to false
+    Return every rental that has been open for longer than RENTAL_PERIOD.
+    Saving each rental sets its return date and makes the book unit available again.
     """
-    today = datetime.datetime.today()
-    past = today - datetime.timedelta(hours=7)
-    rentals = Rental.objects.filter(return_date__isnull=True, rental_date__gte=make_aware(past))
+    now = timezone.now()
+    overdue = Rental.objects.filter(return_date__isnull=True, rental_date__lt=now - settings.RENTAL_PERIOD)
 
-    expected_time = today - datetime.timedelta(minutes=1)
-    expected_time += datetime.timedelta(hours=5)
-    for rental in rentals:
-        if rental.rental_date < make_aware(expected_time):
-            now = datetime.datetime.now() + datetime.timedelta(hours=5)
-            rental.return_date = make_aware(now)
-            rental.save()
+    returned = 0
+    for rental in overdue:
+        rental.return_date = now
+        rental.save()
+        returned += 1
 
-    return None
+    return returned

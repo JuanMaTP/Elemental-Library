@@ -1,20 +1,13 @@
 from rest_framework import permissions
-from django.conf import settings
 
 
 class IsSelfOrReadOnly(permissions.BasePermission):
     """
-    Custom permission to only allow owners of an object to edit it.
+    Anyone can read a profile; only the user themselves can change or delete it.
     """
 
     def has_object_permission(self, request, view, obj):
-        print(type(request.user))
-        # Read permissions are allowed to any request,
-        # so we'll always allow GET, HEAD or OPTIONS requests.
         if request.method in permissions.SAFE_METHODS:
             return True
 
-        if request.user.username == obj.username:
-            return True
-        else:
-            return False
+        return obj == request.user

@@ -1,0 +1,11 @@
+line-length = 120
+extend-exclude = ["*/migrations/*"]
+
+[lint]
+select = ["E", "F", "W", "I"]
+
+[lint.isort]
+known-first-party = ["author", "books", "general", "library", "person", "rental"]
+
+[format]
+quote-style = "single"

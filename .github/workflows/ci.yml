@@ -1,0 +1,47 @@
+name: CI
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_DB: library
+          POSTGRES_USER: library
+          POSTGRES_PASSWORD: library
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U library"
+          --health-interval 5s
+          --health-retries 10
+
+    env:
+      DATABASE_URL: postgres://library:library@localhost:5432/library
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install dependencies
+        run: pip install -r requirements-dev.txt
+
+      - name: Lint
+        run: ruff check .
+
+      - name: Check for missing migrations
+        run: DJANGO_DEBUG=true python manage.py makemigrations --check --dry-run
+
+      - name: Run tests
+        run: pytest

@@ -1,7 +1,4 @@
-import datetime
 from django_filters import rest_framework as filters
-
-from django.utils.timezone import make_aware
 
 from .models import Rental
 

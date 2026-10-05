@@ -1,24 +1,16 @@
-import datetime
+from django.utils import timezone
+from rest_framework import serializers
 
-from django.utils.timezone import make_aware
-from pytz import timezone
-from rest_framework import serializers, status
-from rest_framework.response import Response
+from person.models import Person
 
 from .models import Rental
-from books.serializers import BookUnitSerializer
-from person.serializers import PersonSerializer
-from person.models import Person
 
 
 class RentalSerializer(serializers.ModelSerializer):
 
-    return_date = serializers.DateTimeField(read_only=True, default_timezone=timezone('UTC'))
+    return_date = serializers.DateTimeField(read_only=True)
     rental_date = serializers.DateTimeField(read_only=True)
     person_type = serializers.CharField(read_only=True)
-
-    # book_unit = BookUnitSerializer(read_only=True)
-
     person = serializers.CharField(read_only=True)
 
     class Meta:
@@ -26,22 +18,23 @@ class RentalSerializer(serializers.ModelSerializer):
 
         fields = '__all__'
 
-    # Overwriting the create method to check if a BookUnit is borrowed and to add Person info
-    def create(self, validated_data):
-        # The current person is obtained from the request
-        user = self.context.get('request', None).user
-        person = Person.objects.get(pk=user.pk)
+    def validate_book_unit(self, book_unit):
+        if book_unit.borrowed:
+            raise serializers.ValidationError('Book is currently borrowed')
+        return book_unit
 
-        # The current person and person type are assigned to the Rental attributes
+    # The person and their type come from the logged-in user, not from the request body
+    def create(self, validated_data):
+        user = self.context['request'].user
+        try:
+            person = user.person
+        except Person.DoesNotExist:
+            raise serializers.ValidationError('Only registered people can borrow books')
+
         validated_data['person'] = person
         validated_data['person_type'] = person.type
 
-        # Checks if the user has been borrowed, if it has, it raises a ValidationError
-        if not validated_data['book_unit'].borrowed:
-            rental = Rental.objects.create(**validated_data)
-            return rental
-        else:
-            raise serializers.ValidationError("Book is currently borrowed")
+        return Rental.objects.create(**validated_data)
 
 
 # Serializer to use when a BookUnit is returned
@@ -50,15 +43,13 @@ class RentalReturnSerializer(serializers.ModelSerializer):
     class Meta:
         model = Rental
 
-        fields = []
+        fields = ['id', 'book_unit', 'rental_date', 'return_date']
+        read_only_fields = fields
 
-    # When a PUT is made to the endpoint, the serializer updates the return_date to the current Date
+    # A PUT to the return endpoint sets the return date to now, once
     def update(self, instance, validated_data):
-        # make_aware needed because native value datetime.now is not accepted by the model
         if instance.return_date is None:
-            instance.return_date = make_aware(datetime.datetime.now())
-        instance.save()
+            instance.return_date = timezone.now()
+            instance.save()
 
         return instance
-
-

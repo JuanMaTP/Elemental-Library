@@ -1,19 +1,24 @@
-import calendar
 import datetime
 
 from django.core.management import BaseCommand
-from django.db.models import Count, Max, Min, When
+from django.db.models import Count
 from django.utils.timezone import make_aware
 
 from author.models import Author
-from books.models import Book, BookUnit
+from books.models import BookUnit
 from person.models import Person
 from rental.models import Rental
 
 
+def next_month(date):
+    """First day of the month after `date` (handles December)."""
+    if date.month == 12:
+        return date.replace(year=date.year + 1, month=1, day=1)
+    return date.replace(month=date.month + 1, day=1)
+
+
 class Command(BaseCommand):
-    args = '<foo bar ...>'
-    help = 'our help string comes here'
+    help = 'Example queries over the library data; pick one with --choice 1-7'
 
     def add_arguments(self, parser):
         parser.add_argument('--choice', type=int)
@@ -65,7 +70,7 @@ class Command(BaseCommand):
         """
         date = datetime.datetime.now()
         date = date.replace(day=1)
-        date2 = date.replace(month=date.month+1)
+        date2 = next_month(date)
 
         rentals_last_month = Rental.objects.filter(rental_date__gte=make_aware(date), rental_date__lt=make_aware(date2))
 
@@ -81,7 +86,7 @@ class Command(BaseCommand):
         """
         date = datetime.datetime.now()
         date = date.replace(day=1)
-        date2 = date.replace(month=date.month+1)
+        date2 = next_month(date)
 
         returns_last_month = Rental.objects.filter(return_date__gte=make_aware(date), return_date__lt=make_aware(date2))
 
@@ -95,7 +100,7 @@ class Command(BaseCommand):
         """
         Prints the people that have more than 3 rentals
         """
-        people = Person.objects.annotate(total=Count('rental')).filter(total=3)
+        people = Person.objects.annotate(total=Count('rental')).filter(total__gte=3)
 
         if people:
             print("People that have made more than 3 rentals: ")
@@ -121,14 +126,15 @@ class Command(BaseCommand):
 
     def books_per_month(self):
         date1 = datetime.datetime(2020, 1, 1)
-        date2 = date1.replace(month=date1.month+1)
+        date2 = next_month(date1)
         end_date = datetime.datetime.now()
 
         while date1 < end_date:
-            books_in_month = Rental.objects.filter(rental_date__gte=make_aware(date1), rental_date__lt=make_aware(date2)).count()
+            books_in_month = Rental.objects.filter(
+                rental_date__gte=make_aware(date1), rental_date__lt=make_aware(date2)).count()
             print(str(date1)+": "+str(books_in_month)+" rentals")
             """
             Group by date
             """
             date1 = date1.replace(month=date1.month+1)
-            date2 = date1.replace(month=date1.month+1)
+            date2 = next_month(date1)

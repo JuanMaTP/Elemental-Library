@@ -1,9 +1,10 @@
-from rest_framework import generics
 from django_filters import rest_framework as filters
+from rest_framework import generics
 
-from general.permissions import IsAdminOrReadOnly
 from general.pagination import SmallResultsSetPagination
-from .filters import authors_view_ordering, AuthorFilter
+from general.permissions import IsAdminOrReadOnly
+
+from .filters import AuthorFilter, authors_view_ordering
 from .models import Author
 from .serializers import AuthorSerializer
 
@@ -19,7 +20,7 @@ class AuthorView(generics.ListCreateAPIView):
     filterset_class = AuthorFilter
 
     def get_queryset(self):
-        queryset = Author.objects.all()
+        queryset = Author.objects.order_by('id')
         queryset = authors_view_ordering(self.request.query_params, queryset)
 
         return queryset

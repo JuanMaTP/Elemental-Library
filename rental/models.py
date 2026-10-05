@@ -1,10 +1,10 @@
 from django.db import models
-from django.db.models.signals import post_save, post_delete
+from django.db.models.signals import post_delete, post_save
 from django.dispatch import receiver
 
 from books.models import BookUnit
-from person.models import Person
 from general.constants import Type
+from person.models import Person
 
 
 class Rental(models.Model):
@@ -16,23 +16,17 @@ class Rental(models.Model):
 
     person_type = models.CharField(max_length=Type.TYPE_CHAR_LENGTH, choices=Type.TYPE_CHOICES, default=Type.STUDENT)
 
+    def __str__(self):
+        return f'{self.book_unit} rented by {self.person}'
 
-# Signal used to change the Book Unit borrowed attribute to True when a Rental is created
+
+# Keep BookUnit.borrowed in step with the rental: borrowed while the rental is open,
+# available again once it has a return date.
 @receiver(post_save, sender=Rental)
-def make_book_borrowed(sender, **kwargs):
-    book_unit_id = kwargs['instance'].book_unit_id
-    book_unit = BookUnit.objects.get(pk=book_unit_id)
-    if kwargs.get('created', False):
-        book_unit.borrowed = True
-        book_unit.save()
-    else:
-        book_unit.borrowed = False
-        book_unit.save()
+def update_book_borrowed(sender, instance, **kwargs):
+    BookUnit.objects.filter(pk=instance.book_unit_id).update(borrowed=instance.return_date is None)
 
 
 @receiver(post_delete, sender=Rental)
 def rental_deleted(sender, instance, **kwargs):
-    book_unit = BookUnit.objects.get(pk=instance.book_unit.id)
-    book_unit.borrowed = False
-    book_unit.save()
-
+    BookUnit.objects.filter(pk=instance.book_unit_id).update(borrowed=False)

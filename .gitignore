@@ -109,10 +109,14 @@ media/
 
 # Ignore Django Migrations in Development if you are working on team
 
-# Only for Development only
-# **/migrations/**
-# !**/migrations
-# !**/migrations/__init__.py
 db.sqlite3
 
-**/migrations/*
+
+# Local project files
+.idea/
+.vscode/
+.env
+db.sqlite3
+media/
+staticfiles/
+celerybeat-schedule*

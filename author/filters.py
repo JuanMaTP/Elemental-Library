@@ -1,7 +1,5 @@
-import datetime
-from django_filters import rest_framework as filters
-
 from django.db.models.functions import Lower
+from django_filters import rest_framework as filters
 
 from author.models import Author
 
