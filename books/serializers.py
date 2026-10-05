@@ -1,10 +1,9 @@
-from django.db import models
-from rest_framework import serializers
 from django.utils.crypto import get_random_string
-
-from .models import Book, BookUnit
+from rest_framework import serializers
 
 from author.serializers import AuthorViewSerializer
+
+from .models import Book, BookUnit
 
 
 class BookSerializer(serializers.ModelSerializer):

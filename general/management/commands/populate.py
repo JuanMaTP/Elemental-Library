@@ -3,8 +3,7 @@ import random
 from django.contrib.auth.hashers import make_password
 from django.contrib.auth.models import User
 from django.core.management.base import BaseCommand
-from django.utils.timezone import make_aware
-from random_username.generate import generate_username
+from django.utils import timezone
 from django.utils.crypto import get_random_string
 from faker import Faker
 
@@ -16,8 +15,7 @@ from rental.models import Rental
 
 
 class Command(BaseCommand):
-    args = '<foo bar ...>'
-    help = 'our help string comes here'
+    help = 'Fill the database with random people, authors, books, book units and rentals'
 
     def handle(self, *args, **options):
         people_amount = random.randint(5, 10)
@@ -45,13 +43,14 @@ class Command(BaseCommand):
             person = random.choice(list(people))
             person_type = person.type
 
-            rental_date = fake.date_between(start_date='-1y', end_date='today')
+            tz = timezone.get_current_timezone()
+            rental_date = fake.date_time_between(start_date='-1y', end_date='now', tzinfo=tz)
             percentage = random.randint(1, 100)
             return_date = None
 
             if percentage < 40:
                 while True:
-                    return_date = fake.date_between(start_date='-1y', end_date='today')
+                    return_date = fake.date_time_between(start_date='-1y', end_date='now', tzinfo=tz)
 
                     if return_date > rental_date:
                         break
@@ -77,7 +76,7 @@ class Command(BaseCommand):
 
             serial = get_random_string(length=16)
 
-            book_unit = BookUnit.objects.create(book=random_book, serial=serial)
+            BookUnit.objects.create(book=random_book, serial=serial)
 
     def populate_books(self, amount):
         fake = Faker()
@@ -105,15 +104,15 @@ class Command(BaseCommand):
             gender_choices = [element for tuple in Gender.GENDER_CHOICES for element in tuple][::2]
             gender = random.choice(gender_choices)
 
-            author = Author.objects.create(name=name, birth_date=birth_date, gender=gender)
+            Author.objects.create(name=name, birth_date=birth_date, gender=gender)
 
     def populate_people(self, amount):
+        fake = Faker()
         for _ in range(amount):
-            username = generate_username()[0]
+            username = fake.unique.user_name()
             password = make_password(get_random_string(random.randint(8, 15)))
             user = User.objects.create(username=username, password=password)
 
-            fake = Faker()
             birth_date = fake.date_of_birth(minimum_age=15, maximum_age=60)
 
             gender_choices = [element for tuple in Gender.GENDER_CHOICES for element in tuple][::2]
@@ -122,4 +121,4 @@ class Command(BaseCommand):
             type_choices = [element for tuple in Type.TYPE_CHOICES for element in tuple][::2]
             type = random.choice(type_choices)
 
-            person = Person.objects.create(user=user, birth_date=birth_date, gender=gender, type=type)
+            Person.objects.create(user=user, birth_date=birth_date, gender=gender, type=type)

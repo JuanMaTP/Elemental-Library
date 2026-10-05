@@ -1,17 +1,18 @@
+from django.conf import settings
 from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
 from rest_framework_simplejwt.views import TokenObtainPairView
-from .settings import SIMPLE_JWT
 
 
 class MyTokenObtainPairSerializer(TokenObtainPairSerializer):
+    """Adds the user's name, id and the token lifetime to the login response."""
+
     def validate(self, attrs):
-        data = super(MyTokenObtainPairSerializer, self).validate(attrs)
+        data = super().validate(attrs)
 
-        data.update({'user': self.user.username})
-        data.update({'id': self.user.id})
-        token_time = SIMPLE_JWT['ACCESS_TOKEN_LIFETIME'].seconds /60
-
-        data['token_life_time'] = str(token_time) + ' minutes'
+        data['user'] = self.user.username
+        data['id'] = self.user.id
+        minutes = int(settings.SIMPLE_JWT['ACCESS_TOKEN_LIFETIME'].total_seconds() // 60)
+        data['token_life_time'] = f'{minutes} minutes'
 
         return data
 

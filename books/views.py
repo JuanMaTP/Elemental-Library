@@ -1,11 +1,14 @@
-from rest_framework import generics
+from django.utils.crypto import get_random_string
 from django_filters import rest_framework as filters
+from drf_spectacular.utils import extend_schema, extend_schema_view
+from rest_framework import generics
 
-from .filters import BookFilter, books_view_ordering, book_units_view_ordering, BookUnitFilter
-from .models import Book, BookUnit
-from .serializers import BookSerializer, BookUnitSerializer, BookAddUnitSerializer
+from general.pagination import LargeResultsSetPagination, StandardResultsSetPagination
 from general.permissions import IsAdminOrReadOnly
-from general.pagination import StandardResultsSetPagination, LargeResultsSetPagination
+
+from .filters import BookFilter, BookUnitFilter, book_units_view_ordering, books_view_ordering
+from .models import Book, BookUnit
+from .serializers import BookAddUnitSerializer, BookSerializer, BookUnitSerializer
 
 
 class BookView(generics.ListCreateAPIView):
@@ -19,13 +22,14 @@ class BookView(generics.ListCreateAPIView):
     filterset_class = BookFilter
 
     def get_queryset(self):
-        queryset = Book.objects.all()
+        queryset = Book.objects.order_by('id')
 
         queryset = books_view_ordering(self.request.query_params, queryset)
 
         return queryset
 
 
+@extend_schema_view(post=extend_schema(operation_id='api_books_units_create', summary='Add a BookUnit to this Book'))
 class BookDetailView(generics.RetrieveUpdateDestroyAPIView, generics.CreateAPIView):
     """
     GET, PUT, PATCH and DELETE a Book
@@ -36,14 +40,12 @@ class BookDetailView(generics.RetrieveUpdateDestroyAPIView, generics.CreateAPIVi
     queryset = Book.objects.all()
 
     def perform_create(self, serializer):
-        # Overwriting the creation so that, instead of adding a new Book, a new BookUnit is created
-        validated_data = {}
-        if 'serial' in serializer.data:
-            validated_data['serial'] = serializer.data['serial']
-
-        validated_data['book'] = self.queryset.get(pk=self.kwargs['pk'])
-        book_unit = BookUnitSerializer.create(BookUnitSerializer, validated_data)
-        return book_unit
+        # A POST here adds a new BookUnit to this Book instead of creating a Book.
+        # The response then shows the Book with its units, including the new one.
+        book = self.get_object()
+        serial = serializer.validated_data.get('serial') or get_random_string(length=16)
+        BookUnit.objects.create(book=book, serial=serial)
+        serializer.instance = book
 
 
 class BookUnitView(generics.ListAPIView):
@@ -57,12 +59,18 @@ class BookUnitView(generics.ListAPIView):
     filterset_class = BookUnitFilter
 
     def get_queryset(self):
-        queryset = BookUnit.objects.all()
+        queryset = BookUnit.objects.select_related('book').order_by('id')
         queryset = book_units_view_ordering(self.request.query_params, queryset)
 
         return queryset
 
 
+@extend_schema_view(
+    get=extend_schema(operation_id='api_books_units_retrieve'),
+    put=extend_schema(operation_id='api_books_units_update'),
+    patch=extend_schema(operation_id='api_books_units_partial_update'),
+    delete=extend_schema(operation_id='api_books_units_destroy'),
+)
 class BookUnitDetailView(generics.RetrieveUpdateDestroyAPIView):
     """
     Returns a BookUnit (id) that belongs to a Book (book_id)
